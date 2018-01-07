@@ -1,7 +1,7 @@
 defmodule SpawnLinkTest do
   import :timer, only: [sleep: 1]
   def run do
-    spawn_link(SpawnLinkTest, :test, [self()])
+    spawn_monitor(SpawnLinkTest, :test, [self()])
 
     sleep 500
 
