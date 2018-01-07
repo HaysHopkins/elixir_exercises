@@ -19,5 +19,6 @@ defmodule SpawnLinkTest do
 
   def test(parent) do
     send parent, "Message from the child!"
+    raise RuntimeError
   end
 end
