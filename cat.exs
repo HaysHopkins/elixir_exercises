@@ -1,9 +1,9 @@
 defmodule CatCounter do
   def cat(scheduler) do
-    send scheduler, { :ready, self }
+    send scheduler, { :ready, self() }
     receive do
       { :cat, words, client } ->
-        send client, { :answer, cat_calc(words), self }
+        send client, { :answer, cat_calc(words, 0), self() }
         cat(scheduler)
       { :shutdown } ->
         exit(:normal)
@@ -11,14 +11,14 @@ defmodule CatCounter do
   end
 
   defp cat_calc([], acc), do: acc
-  defp cat_calc([h|t], acc) when h == "cat", do: cat_counter(t, acc+1)
-  defp cat_calc([h|t], acc), do: cat_counter(t, acc)
+  defp cat_calc([h|t], acc) when h == "cat", do: cat_calc(t, acc+1)
+  defp cat_calc([_|t], acc), do: cat_calc(t, acc)
 end
 
 defmodule Scheduler do
   def run(num_processes, module, func, to_calculate) do
     (1..num_processes)
-    |> Enum.map(fn(_) -> spawn(module, func, [self]) end)
+    |> Enum.map(fn(_) -> spawn(module, func, [self()]) end)
     |> schedule_processes(to_calculate, [])
   end
 
@@ -26,7 +26,7 @@ defmodule Scheduler do
     receive do
       {:ready, pid} when length(queue) > 0 ->
         [ next | tail ] = queue
-        send pid, {:cat, next, self}
+        send pid, {:cat, next, self()}
         schedule_processes(processes, tail, results)
 
       {:ready, pid} ->
@@ -44,24 +44,22 @@ defmodule Scheduler do
 end
 
 
-# get count of files for num processes
-# pass in a list of files
-# or maybe 1 better, a list of lists of wods
+File.cd! "texts"
+to_process = File.ls!
+              |> Enum.reject(fn(el) -> String.first(el) == "." end)
+              |> Enum.map(&File.read!/1)
+              |> List.duplicate(20)
 
-# Enum.each 1..10, fn num_processes ->
-#   {time, result} = :timer.tc(
-#       Scheduler, :run,
-#       [num_processes, FibSolver, :fib, to_process]
-#   )
-
-#   if num_processes == 1 do
-#     IO.puts inspect result
-#     IO.puts "\n #  time (s)"
-#   end
-#   :io.format "~2B    ~.2f~n", [num_processes, time/1000000.0]
-# end
-
-:timer.tc(
+Enum.each 1..10, fn num_processes ->
+  {time, result} = :timer.tc(
       Scheduler, :run,
-      [1, FibSolver, :fib, 50]
+      [num_processes, CatCounter, :cat, to_process]
   )
+
+  if num_processes == 1 do
+    IO.puts inspect result
+    IO.puts "\n #  time (s)"
+  end
+  :io.format "~2B    ~.2f~n", [num_processes, time/1000000.0]
+end
+
